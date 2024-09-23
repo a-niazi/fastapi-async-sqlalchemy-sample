@@ -2,20 +2,33 @@ from models import *
 from config import config
 from database.base_class import Base
 from sqlalchemy.orm import sessionmaker
-from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
+from sqlalchemy.ext.asyncio import AsyncSession, AsyncEngine, create_async_engine
+from typing import Optional
 
 
 class Database:
-	def __init__(self):
-		# Create the async engine
-		self.engine = create_async_engine(config.DB_URI, echo=True)
-		# Create an async session maker
-		self.async_session = sessionmaker(
-			bind=self.engine,
-			class_=AsyncSession,
-			expire_on_commit=False
-		)
+	engine: Optional[AsyncEngine] = None
+	async_session: Optional[sessionmaker] = None
 
+	@classmethod
+	def init_engine(self, db_url: str):
+		if self.engine is None:
+			self.engine = create_async_engine(db_url, echo=True)
+			self.async_session = sessionmaker(
+				bind=self.engine,
+				expire_on_commit=False,
+				class_=AsyncSession
+			)
+
+	@classmethod
+	async def get_session(self):
+		if self.engine is None or self.async_session is None:
+			raise Exception("Engine is not initialized. Call 'init_engine' first.")
+		"""Context manager to provide an async session."""
+		async with self.async_session() as session:
+			yield session
+
+	@classmethod
 	async def init_db(self):
 		"""Initialize the database by creating all tables."""
 		async with self.engine.begin() as conn:
@@ -25,7 +38,3 @@ class Database:
 		"""Dispose of the engine."""
 		await self.engine.dispose()
 
-	async def get_session(self):
-		"""Context manager to provide an async session."""
-		async with self.async_session() as session:
-			yield session

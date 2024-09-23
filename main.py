@@ -3,11 +3,13 @@ from fastapi.openapi.docs import get_swagger_ui_html
 import sys, os
 parent = os.path.dirname(os.path.realpath(__file__))
 sys.path.append(parent)
-from controller import note_router, task_router
+from config import config
 from fastapi import Request
 from database.base import Database
+from controller import note_router, task_router
 
 router = APIRouter()
+
 
 @router.get("/docs", include_in_schema=False)
 async def custom_swagger_ui_html(req: Request):
@@ -24,8 +26,8 @@ async def custom_swagger_ui_html(req: Request):
 
 @router.on_event("startup")
 async def on_startup():
-	database = Database()
-	await database.init_db()
+	Database.init_engine(config.DB_URI)
+	await Database.init_db()
 
 router.include_router(note_router)
 router.include_router(task_router)
